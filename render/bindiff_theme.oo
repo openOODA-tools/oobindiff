@@ -1,0 +1,54 @@
+// # oobindiff Render Theme & Serializer
+//
+// Logline: Formats binary difference reports into ANSI styled summaries and JSON envelopes.
+//
+// Setup: Visualizes discrepancy counts, similarity percentages, and hunk records.
+//
+// Beats:
+//   1. Define ANSI terminal styling escape codes using native byte sequences.
+//   2. Render formatted human-readable summaries showing byte metrics and match percentages.
+//   3. Serialize comparison metrics and detected difference hunks to valid JSON envelopes.
+
+import "core/diff_types.oo";
+
+fn esc() -> String {
+    return bytes_to_str(bytes_push(bytes_new(), 27));
+}
+
+pub fn ansi_reset() -> String { return esc() + "[0m"; }
+pub fn ansi_bold() -> String { return esc() + "[1m"; }
+pub fn ansi_cyan() -> String { return esc() + "[1;36m"; }
+pub fn ansi_green() -> String { return esc() + "[1;32m"; }
+pub fn ansi_yellow() -> String { return esc() + "[33m"; }
+pub fn ansi_red() -> String { return esc() + "[1;31m"; }
+
+pub fn render_report_summary(rep: BindiffReport) -> String {
+    let mut out: String = ansi_cyan() + "=== Binary Difference Summary ===" + ansi_reset() + "\n";
+    out = out + "  " + ansi_bold() + "File A Size:" + ansi_reset() + "      " + to_string(rep.size_a) + " bytes\n";
+    out = out + "  " + ansi_bold() + "File B Size:" + ansi_reset() + "      " + to_string(rep.size_b) + " bytes\n";
+    out = out + "  " + ansi_bold() + "Matching Bytes:" + ansi_reset() + "   " + to_string(rep.matching) + " bytes\n";
+    out = out + "  " + ansi_bold() + "Mismatches:" + ansi_reset() + "       " + to_string(rep.mismatches) + " bytes\n";
+
+    let color: String = if rep.similarity_pct == 100 {
+        ansi_green()
+    } else if rep.similarity_pct >= 80 {
+        ansi_yellow()
+    } else {
+        ansi_red()
+    };
+
+    out = out + "  " + ansi_bold() + "Similarity:" + ansi_reset() + "       " + color + to_string(rep.similarity_pct) + "%" + ansi_reset() + "\n";
+    return out;
+}
+
+pub fn render_diff_json(rep: BindiffReport, hunks_text: String) -> String {
+    let mut out: String = "{\n";
+    out = out + "  \"size_a\": " + to_string(rep.size_a) + ",\n";
+    out = out + "  \"size_b\": " + to_string(rep.size_b) + ",\n";
+    out = out + "  \"matching\": " + to_string(rep.matching) + ",\n";
+    out = out + "  \"mismatches\": " + to_string(rep.mismatches) + ",\n";
+    out = out + "  \"similarity_pct\": " + to_string(rep.similarity_pct) + ",\n";
+    out = out + "  \"hunks\": \"" + hunks_text + "\"\n";
+    out = out + "}\n";
+    return out;
+}

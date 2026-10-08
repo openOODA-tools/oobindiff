@@ -1,0 +1,22 @@
+// # oobindiff Core Anchor
+//
+// Logline: Consolidates and re-exports binary comparison, formatting, and hunk engines.
+//
+// Setup: Exports diff types, hex formatters, and byte-level diff stream analyzers.
+//
+// Beats:
+//   1. Re-export differential records and aggregate report structures.
+//   2. Re-export hexadecimal offsets and printable ASCII formatters.
+//   3. Re-export stream comparison, row diff formatting, and hunk detectors.
+
+import "core/diff_types.oo";
+import "core/hex_format.oo";
+import "core/bindiff_engine.oo";
+
+pub fn core_subsystem_version() -> String {
+    return "0.2.0";
+}
+
+pub fn core_subsystem_description() -> String {
+    return "oobindiff pure openOODA core binary diffing subsystem";
+}

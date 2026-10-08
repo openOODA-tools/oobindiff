@@ -1,0 +1,10 @@
+Package: oobindiff
+Version: 0.2.0-1
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: openOODA-tools <ops@openooda.org>
+Description: Sovereign Binary Differ
+ Structural binary differ identifying patch blocks and byte sequence displacements.
+ 100% pure native openOODA (.oo) utility with zero ambient authority,
+ dual POSIX CLI and streaming JSON-RPC 2.0 Model Context Protocol (MCP) server.

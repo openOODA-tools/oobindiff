@@ -1,7 +1,7 @@
 # Maintainer: openOODA-tools <ops@openooda.org>
 pkgname=oobindiff-bin
 _pkgname=oobindiff
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Structural binary differ identifying patch blocks and byte sequence displacements."
 arch=('x86_64')

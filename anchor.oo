@@ -1,13 +1,23 @@
-// # oobindiff Root Anchor
+// # oobindiff Root Subsystem Anchor
 //
-// Logline: Top-level anchor re-exporting options, core logic, render, and ipc subsystems.
+// Logline: Sovereign structural binary differ identifying patch blocks and displacements.
 //
-// Setup: Pure shim re-exporting all oobindiff subsystem anchors.
+// Setup: Root barrel shim re-exporting options, core logic, render, and ipc subsystems.
 //
 // Beats:
 //   1. Re-export options parsing subsystem.
-//   2. Re-export core oobindiff execution engine.
+//   2. Re-export core binary difference comparison engine.
 //   3. Re-export render formatting subsystem.
 //   4. Re-export Model Context Protocol (MCP) IPC subsystem.
 
-import "main.oo";
+import "core/anchor.oo";
+import "render/anchor.oo";
+import "ipc/anchor.oo";
+
+pub fn oobindiff_version() -> String {
+    return "0.2.0";
+}
+
+pub fn oobindiff_banner() -> String {
+    return "oobindiff v0.2.0 (openOODA sovereign binary comparison)";
+}

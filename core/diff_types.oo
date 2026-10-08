@@ -1,0 +1,35 @@
+// # oobindiff Differential Data Structures
+//
+// Logline: Data structures capturing binary difference metrics, hunks, and line records.
+//
+// Setup: Strongly typed structures for binary comparisons without ambient memory allocation.
+//
+// Beats:
+//   1. Define DiffLine recording offset-level byte comparisons and mutations.
+//   2. Define BindiffReport aggregating global similarity, mismatches, and size deltas.
+//   3. Provide constructor routines for blank and evaluated comparison records.
+
+pub type DiffLine = struct {
+    offset: Int,
+    byte_a: Int,
+    byte_b: Int,
+    kind: String
+};
+
+pub type BindiffReport = struct {
+    size_a: Int,
+    size_b: Int,
+    matching: Int,
+    mismatches: Int,
+    similarity_pct: Int
+};
+
+pub fn empty_report() -> BindiffReport {
+    return BindiffReport {
+        size_a: 0,
+        size_b: 0,
+        matching: 0,
+        mismatches: 0,
+        similarity_pct: 100
+    };
+}

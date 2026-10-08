@@ -1,0 +1,109 @@
+// # oobindiff CLI Options Parser
+//
+// Logline: Ingests command line arguments into typed binary difference options.
+//
+// Setup: Pure argument decoding for file paths, offsets, hunk modes, and MCP server.
+//
+// Beats:
+//   1. Parse decimal integer offsets and inspection limits.
+//   2. Define BindiffOpts data structure covering comparison modes.
+//   3. Extract flags for summary mode, hunk display, JSON output, and MCP stdio server.
+
+pub type BindiffOpts = struct {
+    action: String,
+    summary_only: Bool,
+    hunks_mode: Bool,
+    start_offset: Int,
+    limit: Int,
+    json_mode: Bool,
+    file_a: String,
+    file_b: String
+};
+
+fn digit_val(c: String) -> Int {
+    if c == "0" { return 0; }
+    if c == "1" { return 1; }
+    if c == "2" { return 2; }
+    if c == "3" { return 3; }
+    if c == "4" { return 4; }
+    if c == "5" { return 5; }
+    if c == "6" { return 6; }
+    if c == "7" { return 7; }
+    if c == "8" { return 8; }
+    if c == "9" { return 9; }
+    return -1;
+}
+
+pub fn parse_int_str(s: String) -> Int {
+    let n: Int = chars_len(s);
+    let mut acc: Int = 0;
+    let mut i: Int = 0;
+    while i < n {
+        let d: Int = digit_val(char_at(s, i));
+        if d >= 0 {
+            acc = (acc * 10) + d;
+        }
+        i = i + 1;
+    }
+    return acc;
+}
+
+pub fn default_bindiff_opts() -> BindiffOpts {
+    return BindiffOpts {
+        action: "run",
+        summary_only: false,
+        hunks_mode: false,
+        start_offset: 0,
+        limit: 100,
+        json_mode: false,
+        file_a: "",
+        file_b: ""
+    };
+}
+
+pub fn parse_bindiff_args(args: List[String]) -> BindiffOpts {
+    let mut opts: BindiffOpts = default_bindiff_opts();
+    let n: Int = list_len(args);
+    let mut i: Int = 0;
+
+    while i < n {
+        let arg: String = list_get(args, i);
+
+        if arg == "-h" || arg == "--help" {
+            opts.action = "help";
+            return opts;
+        } else if arg == "-v" || arg == "--version" {
+            opts.action = "version";
+            return opts;
+        } else if arg == "--mcp" {
+            opts.action = "mcp";
+            return opts;
+        } else if arg == "-s" || arg == "--summary" {
+            opts.summary_only = true;
+        } else if arg == "-u" || arg == "--hunks" {
+            opts.hunks_mode = true;
+        } else if arg == "--json" {
+            opts.json_mode = true;
+        } else if arg == "-o" || arg == "--offset" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.start_offset = parse_int_str(list_get(args, i));
+            }
+        } else if arg == "-n" || arg == "--limit" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.limit = parse_int_str(list_get(args, i));
+            }
+        } else if !str_starts_with(arg, "-") {
+            if chars_len(opts.file_a) == 0 {
+                opts.file_a = arg;
+            } else if chars_len(opts.file_b) == 0 {
+                opts.file_b = arg;
+            }
+        }
+
+        i = i + 1;
+    }
+
+    return opts;
+}

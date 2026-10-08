@@ -1,0 +1,20 @@
+// # oobindiff Render Subsystem Anchor
+//
+// Logline: Consolidates and re-exports presentation formatters for oobindiff.
+//
+// Setup: Exports ANSI terminal themes, diff tables, and JSON serializers.
+//
+// Beats:
+//   1. Re-export binary difference terminal visualizer and summaries.
+//   2. Re-export percentage similarity styling indicators.
+//   3. Re-export differential metrics and hunk JSON envelopes.
+
+import "render/bindiff_theme.oo";
+
+pub fn render_subsystem_version() -> String {
+    return "0.2.0";
+}
+
+pub fn render_subsystem_description() -> String {
+    return "oobindiff pure openOODA render and theme subsystem";
+}

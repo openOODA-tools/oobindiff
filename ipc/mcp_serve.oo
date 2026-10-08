@@ -1,0 +1,137 @@
+// # oobindiff Model Context Protocol (MCP) Stdio Server
+//
+// Logline: JSON-RPC 2.0 stdio server providing structural binary comparison and diff hunks.
+//
+// Setup: Demands FsReadCap for dual file ingestion and stdio streaming. Zero ambient authority.
+//
+// Beats:
+//   1. Ingest JSON-RPC 2.0 frames over stdin and dispatch RPC methods.
+//   2. Advertise binary diff tools: bindiff_compare, bindiff_hunks, bindiff_similarity, bindiff_stats.
+//   3. Execute capability-bounded binary comparisons and stream JSON responses.
+
+import "core/diff_types.oo";
+import "core/bindiff_engine.oo";
+import "render/bindiff_theme.oo";
+import "ipc/json_field.oo";
+import "ipc/bindiff_opts.oo";
+
+pub fn run_mcp_server(fs: &FsReadCap) {
+    let mut running: Bool = true;
+    while running {
+        let line_res: Result[String, String] = oo_read_stdin_chunk(fs, 8192);
+        if !line_res.is_ok() {
+            running = false;
+        } else {
+            let line: String = match line_res { Ok(s) => s, Err(_) => "" };
+            let trimmed: String = str_trim(line);
+            if chars_len(trimmed) == 0 {
+                running = false;
+            } else {
+                let id: String = json_get_field(trimmed, "id");
+                let method: String = json_get_string(trimmed, "method");
+
+                if method == "initialize" {
+                    let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                        ",\"result\":{\"protocolVersion\":\"2024-11-05\"," +
+                        "\"serverInfo\":{\"name\":\"oobindiff\",\"version\":\"0.2.0\"}," +
+                        "\"capabilities\":{\"tools\":{}}}}";
+                    println(resp);
+                } else if method == "notifications/initialized" {
+                    // Ack
+                } else if method == "tools/list" {
+                    let t1: String = "{\"name\":\"bindiff_compare\",\"description\":\"Compare two binary files and report similarity and hunks\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path_a\":{\"type\":\"string\"},\"path_b\":{\"type\":\"string\"}},\"required\":[\"path_a\",\"path_b\"]}}";
+                    let t2: String = "{\"name\":\"bindiff_hunks\",\"description\":\"List contiguous modified byte regions between two files\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path_a\":{\"type\":\"string\"},\"path_b\":{\"type\":\"string\"},\"max_hunks\":{\"type\":\"integer\"}},\"required\":[\"path_a\",\"path_b\"]}}";
+                    let t3: String = "{\"name\":\"bindiff_similarity\",\"description\":\"Compute percentage similarity score and mismatch count\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path_a\":{\"type\":\"string\"},\"path_b\":{\"type\":\"string\"}},\"required\":[\"path_a\",\"path_b\"]}}";
+                    let t4: String = "{\"name\":\"bindiff_stats\",\"description\":\"Query oobindiff differential engine specifications\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}";
+                    let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                        ",\"result\":{\"tools\":[" + t1 + "," + t2 + "," + t3 + "," + t4 + "]}}";
+                    println(resp);
+                } else if method == "tools/call" {
+                    let params: String = json_get_field(trimmed, "params");
+                    let tool_name: String = json_get_string(params, "name");
+                    let args: String = json_get_field(params, "arguments");
+
+                    if tool_name == "bindiff_compare" {
+                        let pa: String = json_get_string(args, "path_a");
+                        let pb: String = json_get_string(args, "path_b");
+                        let fa: Result[String, String] = read_file(fs, pa);
+                        let fb: Result[String, String] = read_file(fs, pb);
+
+                        if fa.is_ok() && fb.is_ok() {
+                            let ca: String = match fa { Ok(s) => s, Err(_) => "" };
+                            let cb: String = match fb { Ok(s) => s, Err(_) => "" };
+                            let rep: BindiffReport = analyze_bindiff(ca, cb);
+                            let hunks: String = find_hunks_summary(ca, cb, 20);
+                            let j: String = render_diff_json(rep, json_escape_string(hunks));
+                            let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                                ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                            println(resp);
+                        } else {
+                            let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                                ",\"error\":{\"code\":-32000,\"message\":\"Cannot read target comparison files\"}}";
+                            println(resp);
+                        }
+                    } else if tool_name == "bindiff_hunks" {
+                        let pa: String = json_get_string(args, "path_a");
+                        let pb: String = json_get_string(args, "path_b");
+                        let m_str: String = json_get_field(args, "max_hunks");
+                        let max_h: Int = if chars_len(m_str) > 0 { parse_int_str(m_str) } else { 50 };
+
+                        let fa: Result[String, String] = read_file(fs, pa);
+                        let fb: Result[String, String] = read_file(fs, pb);
+
+                        if fa.is_ok() && fb.is_ok() {
+                            let ca: String = match fa { Ok(s) => s, Err(_) => "" };
+                            let cb: String = match fb { Ok(s) => s, Err(_) => "" };
+                            let hunks: String = find_hunks_summary(ca, cb, max_h);
+                            let j: String = "{\"hunks\":\"" + json_escape_string(hunks) + "\"}";
+                            let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                                ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                            println(resp);
+                        } else {
+                            let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                                ",\"error\":{\"code\":-32000,\"message\":\"Cannot read target comparison files\"}}";
+                            println(resp);
+                        }
+                    } else if tool_name == "bindiff_similarity" {
+                        let pa: String = json_get_string(args, "path_a");
+                        let pb: String = json_get_string(args, "path_b");
+                        let fa: Result[String, String] = read_file(fs, pa);
+                        let fb: Result[String, String] = read_file(fs, pb);
+
+                        if fa.is_ok() && fb.is_ok() {
+                            let ca: String = match fa { Ok(s) => s, Err(_) => "" };
+                            let cb: String = match fb { Ok(s) => s, Err(_) => "" };
+                            let rep: BindiffReport = analyze_bindiff(ca, cb);
+                            let j: String = "{\"similarity_pct\":" + to_string(rep.similarity_pct) + ",\"matching\":" + to_string(rep.matching) + ",\"mismatches\":" + to_string(rep.mismatches) + "}";
+                            let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                                ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                            println(resp);
+                        } else {
+                            let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                                ",\"error\":{\"code\":-32000,\"message\":\"Cannot read target comparison files\"}}";
+                            println(resp);
+                        }
+                    } else if tool_name == "bindiff_stats" {
+                        let j: String = "{\"engine\":\"oobindiff\",\"version\":\"0.2.0\",\"pure_native\":true,\"features\":[\"byte_comparison\",\"hunk_detection\",\"similarity_metrics\",\"mcp_streaming\"]}";
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                        println(resp);
+                    } else {
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}";
+                        println(resp);
+                    }
+                } else {
+                    let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                        ",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}";
+                    println(resp);
+                }
+            }
+        }
+    }
+}

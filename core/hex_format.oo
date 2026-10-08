@@ -1,0 +1,55 @@
+// # oobindiff Hex and ASCII Formatting Primitives
+//
+// Logline: Formats byte values, offsets, and ASCII representations for binary differences.
+//
+// Setup: Pure string formatting utilities converting numeric values to padded representations.
+//
+// Beats:
+//   1. Convert 8-bit byte integers to two-character lowercase hexadecimal strings.
+//   2. Format 32-bit and 64-bit byte offsets into 8-character zero-padded hex representations.
+//   3. Convert byte values into printable ASCII characters or dot placeholders.
+
+fn hex_nibble(n: Int) -> String {
+    let v: Int = n & 15;
+    if v == 0 { return "0"; }
+    if v == 1 { return "1"; }
+    if v == 2 { return "2"; }
+    if v == 3 { return "3"; }
+    if v == 4 { return "4"; }
+    if v == 5 { return "5"; }
+    if v == 6 { return "6"; }
+    if v == 7 { return "7"; }
+    if v == 8 { return "8"; }
+    if v == 9 { return "9"; }
+    if v == 10 { return "a"; }
+    if v == 11 { return "b"; }
+    if v == 12 { return "c"; }
+    if v == 13 { return "d"; }
+    if v == 14 { return "e"; }
+    return "f";
+}
+
+pub fn byte_to_hex(b: Int) -> String {
+    let hi: Int = (b >> 4) & 15;
+    let lo: Int = b & 15;
+    return hex_nibble(hi) + hex_nibble(lo);
+}
+
+pub fn offset_to_hex8(offset: Int) -> String {
+    let mut s: String = "";
+    let mut i: Int = 7;
+    while i >= 0 {
+        let shift: Int = i * 4;
+        let nibble: Int = (offset >> shift) & 15;
+        s = s + hex_nibble(nibble);
+        i = i - 1;
+    }
+    return s;
+}
+
+pub fn byte_to_ascii(b: Int) -> String {
+    if b >= 32 && b <= 126 {
+        return bytes_to_str(bytes_push(bytes_new(), b));
+    }
+    return ".";
+}
